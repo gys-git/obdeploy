@@ -17,6 +17,8 @@ import { useRequest } from 'ahooks';
 import { find } from 'lodash';
 import React, { useEffect, useState } from 'react';
 import { history, useLocation, useModel } from 'umi';
+import { encrypt } from '@/utils/encrypt';
+import { getPublicKey } from '@/services/ob-deploy-web/Common';
 import ConnectionInfo from './Component/ConnectionInfo';
 import UpdatePreCheck from './Component/UpdatePreCheck';
 
@@ -251,8 +253,9 @@ const Update: React.FC = () => {
   };
 
   const handleCheck = () => {
-    validateFields().then((values) => {
+    validateFields().then(async (values) => {
       const { host, port, database, accessUser, accessCode } = values;
+      const { data: publicKey } = await getPublicKey();
       setOcpConfigData({
         ...ocpConfigData,
         updateConnectInfo: {
@@ -265,7 +268,7 @@ const Update: React.FC = () => {
         port,
         database,
         user: accessUser,
-        password: accessCode,
+        password: encrypt(accessCode, publicKey) || accessCode,
         cluster_name,
       });
     });
@@ -373,11 +376,11 @@ const Update: React.FC = () => {
                       <Tooltip
                         title={
                           current === 1 &&
-                          precheckOcpUpgradeLoading &&
-                          intl.formatMessage({
-                            id: 'OBD.OcpInstaller.Update.InThePreCheckProcess',
-                            defaultMessage: '预检查中，暂不支持进入上一步',
-                          })
+                            precheckOcpUpgradeLoading ?
+                            intl.formatMessage({
+                              id: 'OBD.OcpInstaller.Update.InThePreCheckProcess',
+                              defaultMessage: '预检查中，暂不支持进入上一步',
+                            }) : ''
                         }
                       >
                         <Button
@@ -416,6 +419,7 @@ const Update: React.FC = () => {
                         })
                       }
                     >
+
                       <Button
                         disabled={
                           (current === 1 &&
@@ -433,7 +437,7 @@ const Update: React.FC = () => {
                           if (
                             current === 1 &&
                             ocpUpgradePrecheckTask?.task_info?.status ===
-                              'FINISHED' &&
+                            'FINISHED' &&
                             (ocpUpgradePrecheckTask?.task_info?.result ===
                               'SUCCESSFUL' ||
                               !precheckNoPassed)
@@ -458,18 +462,18 @@ const Update: React.FC = () => {
                         }}
                       >
                         {current === 1 &&
-                        ocpUpgradePrecheckTask?.task_info?.status !==
+                          ocpUpgradePrecheckTask?.task_info?.status !==
                           'FINISHED' &&
-                        ocpUpgradePrecheckTask?.task_info?.result !==
+                          ocpUpgradePrecheckTask?.task_info?.result !==
                           'SUCCESSFUL'
                           ? intl.formatMessage({
-                              id: 'OBD.OcpInstaller.Update.PreCheck',
-                              defaultMessage: '预检查',
-                            })
+                            id: 'OBD.OcpInstaller.Update.PreCheck',
+                            defaultMessage: '预检查',
+                          })
                           : intl.formatMessage({
-                              id: 'OBD.OcpInstaller.Update.NextStep',
-                              defaultMessage: '下一步',
-                            })}
+                            id: 'OBD.OcpInstaller.Update.NextStep',
+                            defaultMessage: '下一步',
+                          })}
                       </Button>
                     </Tooltip>
                   </>
@@ -488,9 +492,9 @@ const Update: React.FC = () => {
                         disabled={precheckOcpUpgradeLoading || preCheckLoading}
                         loading={precheckOcpUpgradeLoading || preCheckLoading}
                         onClick={() => {
-                          if(needDestroy){
+                          if (needDestroy) {
                             handleDestroyDeployment({ name: cluster_name });
-                          }else{
+                          } else {
                             refresh();
                             setInstallStatus('RUNNING');
                           }

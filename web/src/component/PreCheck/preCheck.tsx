@@ -1,31 +1,31 @@
+import ExitBtn from '@/component/ExitBtn';
+import EnStyles from '@/pages/Obdeploy/indexEn.less';
+import ZhStyles from '@/pages/Obdeploy/indexZh.less';
 import { intl } from '@/utils/intl';
-import { useEffect } from 'react';
 import {
-  Space,
-  Button,
-  Progress,
-  Timeline,
-  Checkbox,
-  Typography,
-  Tooltip,
-  Tag,
-  Spin,
-  Empty,
-} from 'antd';
-import { ProCard } from '@ant-design/pro-components';
-import {
+  CheckCircleFilled,
+  CloseCircleFilled,
   CloseOutlined,
   QuestionCircleFilled,
   ReadFilled,
-  CheckCircleFilled,
-  CloseCircleFilled,
 } from '@ant-design/icons';
-import CustomFooter from '../CustomFooter';
-import ExitBtn from '@/component/ExitBtn';
+import { ProCard } from '@ant-design/pro-components';
+import {
+  Button,
+  Checkbox,
+  Empty,
+  Progress,
+  Space,
+  Spin,
+  Tag,
+  Timeline,
+  Tooltip,
+  Typography,
+} from 'antd';
 import NP from 'number-precision';
+import { useEffect } from 'react';
 import { getLocale } from 'umi';
-import ZhStyles from '@/pages/Obdeploy/indexZh.less';
-import EnStyles from '@/pages/Obdeploy/indexEn.less';
+import CustomFooter from '../CustomFooter';
 
 interface PreCehckComponentProps {
   checkFinished: boolean;
@@ -37,7 +37,8 @@ interface PreCehckComponentProps {
   hasAuto: boolean;
   recoverLoading: boolean;
   precheckLoading?: boolean;
-  errCodeLink:string;
+  errCodeLink: string;
+  installLoading?: boolean;
   failedList: API.PreCheckInfo[];
   statusData: API.PreCheckResult;
   showFailedList: API.PreCheckInfo[];
@@ -60,7 +61,7 @@ const statusColorConfig = {
   PASSED: 'green',
   PENDING: 'gray',
   FAILED: 'red',
-  SUCCESSFUL: 'green'
+  SUCCESSFUL: 'green',
 };
 
 let timerScroll: NodeJS.Timer;
@@ -81,11 +82,12 @@ export default function PreCehckComponent({
   hasManual,
   setOnlyManual,
   handleAutoRepair,
+  handelCheck,
   hasAuto,
   recoverLoading,
   showFailedList,
   prevStep,
-  precheckLoading,
+  installLoading,
   handleInstall,
   setIsScroll,
   setIsScrollFailed,
@@ -134,7 +136,7 @@ export default function PreCehckComponent({
     timelineContainer.onmousewheel = handleScrollTimeline; // ie , chrome
     timelineContainer?.addEventListener('DOMMouseScroll', handleScrollTimeline); // firefox
     return () => {
-      timelineContainer.onmousewheel = () => {};
+      timelineContainer.onmousewheel = () => { };
       timelineContainer?.removeEventListener(
         'DOMMouseScroll',
         handleScrollTimeline,
@@ -165,7 +167,7 @@ export default function PreCehckComponent({
     return () => {
       const failedContainer = document.getElementById('failed-container');
       if (failedContainer) {
-        failedContainer.onmousewheel = () => {};
+        failedContainer.onmousewheel = () => { };
         failedContainer?.removeEventListener(
           'DOMMouseScroll',
           handleScrollFailed,
@@ -194,28 +196,34 @@ export default function PreCehckComponent({
     </div>
   );
 
-  const checkItemLength = `${statusData?.finished || 0}/${
-    statusData?.total || 0
-  }`;
+  const checkItemLength =
+    !statusData?.finished && !statusData?.total
+      ? null
+      : `${statusData?.finished || 0}/${statusData?.total || 0}`;
   const failedItemLength = failedList?.length;
   return (
-    <Space className={styles.spaceWidth} direction="vertical" size="middle">
+    <Space
+      className={styles.spaceWidth}
+      style={{ overflowX: 'hidden' }}
+      direction="vertical"
+      size="middle"
+    >
       <ProCard
         title={
           checkStatus
             ? checkFinished
               ? intl.formatMessage({
-                  id: 'OBD.component.PreCheck.preCheck.CheckCompleted',
-                  defaultMessage: '检查完成',
-                })
-              : intl.formatMessage({
-                  id: 'OBD.component.PreCheck.preCheck.Checking',
-                  defaultMessage: '检查中',
-                })
-            : intl.formatMessage({
-                id: 'OBD.component.PreCheck.preCheck.CheckFailed',
-                defaultMessage: '检查失败',
+                id: 'OBD.component.PreCheck.preCheck.CheckCompleted',
+                defaultMessage: '检查完成',
               })
+              : intl.formatMessage({
+                id: 'OBD.component.PreCheck.preCheck.Checking',
+                defaultMessage: '检查中',
+              })
+            : intl.formatMessage({
+              id: 'OBD.component.PreCheck.preCheck.CheckFailed',
+              defaultMessage: '检查失败',
+            })
         }
         gutter={16}
         className="card-padding-bottom-24"
@@ -230,6 +238,7 @@ export default function PreCehckComponent({
           )}
           colSpan={12}
           className={`${styles.preCheckSubCard} card-padding-bottom-24 `}
+          bodyStyle={{ overflowY: 'hidden' }}
           extra={
             <Button
               className={styles.preCheckBtn}
@@ -266,9 +275,9 @@ export default function PreCehckComponent({
                 percent={
                   statusData?.finished
                     ? NP.times(
-                        NP.divide(statusData?.finished, statusData?.total!),
-                        100,
-                      )
+                      NP.divide(statusData?.finished, statusData?.total!),
+                      100,
+                    )
                     : 0
                 }
                 status={checkStatus ? progressStatus : 'exception'}
@@ -286,9 +295,8 @@ export default function PreCehckComponent({
                     return (
                       <Timeline.Item
                         key={index}
-                        id={`${
-                          timelineData?.isRunning ? 'running-timeline-item' : ''
-                        }`}
+                        id={`${timelineData?.isRunning ? 'running-timeline-item' : ''
+                          }`}
                         color={statusColorConfig[timelineData?.result]}
                         dot={
                           timelineData?.result ? (
@@ -336,10 +344,19 @@ export default function PreCehckComponent({
                 </Checkbox>
               ) : null}
               <Button
-                className={styles.preCheckBtn}
+                className={
+                  !checkFinished || !hasAuto
+                    ? styles.disabledPreCheckBtn
+                    : styles.preCheckBtn
+                }
                 type="primary"
                 disabled={!checkFinished || !hasAuto}
                 onClick={handleAutoRepair}
+                // 修复回滚，引发检查列表问题
+                // onClick={() => {
+                //   handelCheck()
+                //   handleAutoRepair()
+                // }}
                 loading={recoverLoading}
                 data-aspm-click="c307513.d317292"
                 data-aspm-desc={intl.formatMessage({
@@ -360,7 +377,10 @@ export default function PreCehckComponent({
           {showFailedList?.length ? (
             <div className={styles.failedContainer} id="failed-container">
               {showFailedList?.map((item, index) => {
-                let reason = '',responseReason = item?.description || handleAdvisement(item?.advisement) as string
+                let reason = '',
+                  responseReason =
+                    item?.description ||
+                    (handleAdvisement(item?.advisement) as string);
                 if (responseReason) {
                   const index = responseReason.indexOf(':');
                   reason = responseReason.substring(
@@ -384,7 +404,9 @@ export default function PreCehckComponent({
                       {item.name}
                     </Text>
                     <Tooltip
-                      title={item.description || handleAdvisement(item?.advisement)}
+                      title={
+                        item.description || handleAdvisement(item?.advisement)
+                      }
                       overlayClassName="list-tooltip"
                     >
                       <Text ellipsis>
@@ -403,7 +425,10 @@ export default function PreCehckComponent({
                       </Text>
                     </Tooltip>
                     <Tooltip
-                      title={item.advisement?.description || handleAdvisement(item?.advisement)}
+                      title={
+                        item.advisement?.description ||
+                        handleAdvisement(item?.advisement)
+                      }
                       overlayClassName="list-tooltip"
                     >
                       <Text ellipsis>
@@ -430,7 +455,8 @@ export default function PreCehckComponent({
                             })}
                           </Tag>
                         )}{' '}
-                        {item.advisement?.description || handleAdvisement(item?.advisement)}
+                        {item.advisement?.description ||
+                          handleAdvisement(item?.advisement)}
                       </Text>
                       <br />
                       <a
@@ -458,8 +484,8 @@ export default function PreCehckComponent({
               description={
                 <span style={{ color: '#8592ad' }}>
                   {intl.formatMessage({
-                    id: 'OBD.component.PreCheck.preCheck.GreatNoFailedItems',
-                    defaultMessage: '太棒了！无失败项',
+                    id: 'OBD.component.EnvPreCheck.CheckFailuredItem.GreatCheckAllSuccessful',
+                    defaultMessage: '太棒了！检查全部成功！',
                   })}
                 </span>
               }
@@ -503,12 +529,12 @@ export default function PreCehckComponent({
         ) : (
           <Button
             type="primary"
-            loading={precheckLoading}
+            loading={installLoading}
             onClick={handleInstall}
           >
             {intl.formatMessage({
-              id: 'OBD.component.PreCheck.preCheck.NextStep',
-              defaultMessage: '下一步',
+              id: 'OBD.component.PreCheck.preCheck.Deployment',
+              defaultMessage: '部署',
             })}
           </Button>
         )}
